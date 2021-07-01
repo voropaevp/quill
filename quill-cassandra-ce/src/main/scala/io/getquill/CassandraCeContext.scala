@@ -1,21 +1,27 @@
 package io.getquill
 
 import com.datastax.driver.core._
-import io.getquill.CassandraZioContext._
+import io.getquill.CassandraCeContext._
 import io.getquill.context.StandardContext
 import io.getquill.context.cassandra.{CassandraBaseContext, CqlIdiom}
-import io.getquill.context.qzio.ZioContext
+import io.getquill.context.qzio.CeContext
 import io.getquill.util.Messages.fail
 import io.getquill.util.ZioConversions._
 import io.getquill.util.ContextLogger
+import cats.effect._
+import cats._
 import zio.blocking.{Blocking, blocking}
 import zio.stream.ZStream
 import zio.{Chunk, ChunkBuilder, Has, ZIO, ZManaged}
-
 import scala.jdk.CollectionConverters._
 import scala.util.Try
+import io.getquill.util.RichListenableFuture
+import io.getquill.CassandraCeSession
+import io.getquill.util.CeFutures
 
-object CassandraZioContext { //test
+type x = RichListenableFuture
+
+object CassandraCeContext { //test
   type BlockingSession = Has[CassandraZioSession] with Blocking
   type CIO[T] = ZIO[BlockingSession, Throwable, T]
   type CStream[T] = ZStream[BlockingSession, Throwable, T]
@@ -54,19 +60,20 @@ object CassandraZioContext { //test
  * Runtime.default.unsafeRun(MyZioContext.run(query[Person]).provideCustomLayer(zioSession))
  * }}
  */
-class CassandraZioContext[N <: NamingStrategy](val naming: N)
+
+
+class CassandraCeContext[F[_] : Async, N <: NamingStrategy](val naming: N)(implicit val af: Async)
   extends CassandraBaseContext[N]
-    with ZioContext[CqlIdiom, N]
+    with CeContext[CqlIdiom, N]
     with StandardContext[CqlIdiom, N] {
 
-  private val logger = ContextLogger(classOf[CassandraZioContext[_]])
+  private val logger = ContextLogger(classOf[CassandraCeContext[_]])
 
   override type Error = Throwable
-  override type Environment = Has[CassandraZioSession] with Blocking
 
   override type StreamResult[T] = CStream[T]
   override type RunActionResult = Unit
-  override type Result[T] = CIO[T]
+  override type Result[T] = Async[T]
 
   override type RunQueryResult[T] = List[T]
   override type RunQuerySingleResult[T] = T
@@ -75,8 +82,20 @@ class CassandraZioContext[N <: NamingStrategy](val naming: N)
   override type PrepareRow = BoundStatement
   override type ResultRow = Row
 
-  protected def page(rs: ResultSet): CIO[Chunk[Row]] = ZIO.effect {
-    // TODO Is this right? Was Task.defer in monix
+  protected def page(rs: ResultSet): F[Iterable[Row]] = for {
+    page_isFullyFetched <- af.defer {
+      val available = rs.getAvailableWithoutFetching
+      (rs.asScala.take(available), rs.isFullyFetched)
+    }
+    (page, isFullyFetched) = page_isFullyFetched
+    it <- if (isFullyFetched) {
+      af.defer(page)
+    } else {
+      val fut: Future[] = rs.fetchMoreResults().toAsync
+    }
+  } yield it
+
+  protected def page(rs: ResultSet): CIO[Chunk[Row]] = ZIO.succeed { // TODO Is this right? Was Task.defer in monix
     val available = rs.getAvailableWithoutFetching
     val builder = ChunkBuilder.make[Row]()
     builder.sizeHint(available)
