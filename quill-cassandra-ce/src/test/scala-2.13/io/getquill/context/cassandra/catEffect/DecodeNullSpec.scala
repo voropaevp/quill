@@ -1,14 +1,15 @@
 package io.getquill.context.cassandra.catEffect
 
 import io.getquill._
-import io.getquill.context.cassandra.catsEffect.testCeDB._
-import io.getquill.context.cassandra.catsEffect.testCeDB
-import cats.effect.unsafe.implicits.global
 
 class DecodeNullSpec extends Spec {
 
   "no default values when reading null" - {
     "stream" in {
+      import io.getquill.context.cassandra.catsEffect.testCeDB._
+      import io.getquill.context.cassandra.catsEffect.testCeDB
+      import cats.effect.unsafe.implicits.global
+
       val writeEntities = quote(querySchema[DecodeNullTestWriteEntity]("DecodeNullTestEntity"))
 
       val result =

@@ -8,13 +8,11 @@ import cats._
 import io.getquill.util.GuavaCeUtils._
 import cats.syntax.all._
 import com.typesafe.config.Config
+import io.getquill.context.ce.CeContext
 import fs2.Stream
-import io.getquill.context.{ CassandraSession, SyncCache }
-import io.getquill.context.ExecutionInfo
-import io.getquill.context.cassandra.PrepareStatementCache
+
 import scala.jdk.CollectionConverters._
 import scala.language.higherKinds
-import io.getquill.context.ce.CeContext
 
 class CassandraCeContext[N <: NamingStrategy, F[_]](
   naming:                     N,
@@ -27,11 +25,11 @@ class CassandraCeContext[N <: NamingStrategy, F[_]](
 
   private val logger = ContextLogger(classOf[CassandraCeContext[_, F]])
 
-  private[getquill] def prepareRowAndLog(cql: String, prepare: Prepare = identityPrepare): F[PrepareRow] = for {
+  private def prepareRowAndLog(cql: String, prepare: Prepare = identityPrepare): F[PrepareRow] = for {
     ec <- Async[F].executionContext
-    futureStatement = Sync[F].delay(prepareAsync(cql)(ec))
+    futureStatement = Sync[F].delay(super.prepareAsync(cql)(ec))
     prepStatement <- Async[F].fromFuture(futureStatement)
-    (params, bs) = prepare(prepStatement, this)
+    (params, bs) = prepare(prepStatement)
     _ <- Sync[F].delay(logger.logQuery(cql, params))
   } yield bs
 
@@ -52,33 +50,33 @@ class CassandraCeContext[N <: NamingStrategy, F[_]](
     }
   } yield it
 
-  def streamQuery[T](cql: String, prepare: Prepare = identityPrepare, extractor: Extractor[T] = identityExtractor)(info: ExecutionInfo, dc: DatasourceContext): Stream[F, T] = {
+  def streamQuery[T](cql: String, prepare: Prepare = identityPrepare, extractor: Extractor[T] = identityExtractor): Stream[F, T] = {
     Stream
       .eval(prepareRowAndLog(cql, prepare))
       .evalMap(p => af.delay(session.executeAsync(p)).toAsync)
       .flatMap(rs => Stream.repeatEval(page(rs)))
       .takeWhile(_.nonEmpty)
       .flatMap(Stream.iterable)
-      .map(it => extractor(it, this))
+      .map(extractor)
   }
 
-  def executeQuery[T](cql: String, prepare: Prepare = identityPrepare, extractor: Extractor[T] = identityExtractor)(info: ExecutionInfo, dc: DatasourceContext): Result[RunQueryResult[T]] =
-    streamQuery[T](cql, prepare, extractor)(info, dc).compile.toList
+  def executeQuery[T](cql: String, prepare: Prepare = identityPrepare, extractor: Extractor[T] = identityExtractor): Result[RunQueryResult[T]] =
+    streamQuery[T](cql, prepare, extractor).compile.toList
 
-  def executeQuerySingle[T](cql: String, prepare: Prepare = identityPrepare, extractor: Extractor[T] = identityExtractor)(info: ExecutionInfo, dc: DatasourceContext): Result[RunQuerySingleResult[T]] =
-    Functor[F].map(executeQuery(cql, prepare, extractor)(info, dc))(handleSingleResult)
+  def executeQuerySingle[T](cql: String, prepare: Prepare = identityPrepare, extractor: Extractor[T] = identityExtractor): Result[RunQuerySingleResult[T]] =
+    Functor[F].map(executeQuery(cql, prepare, extractor))(handleSingleResult)
 
-  def executeAction(cql: String, prepare: Prepare = identityPrepare)(info: ExecutionInfo, dc: DatasourceContext): Result[RunActionResult] = {
+  def executeAction(cql: String, prepare: Prepare = identityPrepare): Result[Unit] = {
     prepareRowAndLog(cql, prepare)
       .flatMap(r => af.delay(session.executeAsync(r)).toAsync)
       .map(_ => ())
   }
 
-  def executeBatchAction(groups: List[BatchGroup])(info: ExecutionInfo, dc: DatasourceContext): Result[RunBatchActionResult] =
-    groups.traverse_ {
-      case BatchGroup(cql, prepare) =>
-        prepare.traverse_(executeAction(cql, _)(info, dc))
+  def executeBatchAction(groups: List[BatchGroup]): Result[Unit] =
+    groups.traverse_ { case BatchGroup(cql, prepare) =>
+      prepare.traverse_(executeAction(cql, _))
     }
+
 }
 
 object CassandraCeContext {
