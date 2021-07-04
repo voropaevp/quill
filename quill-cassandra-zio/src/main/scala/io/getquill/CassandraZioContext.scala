@@ -3,14 +3,14 @@ package io.getquill
 import com.datastax.driver.core._
 import io.getquill.CassandraZioContext._
 import io.getquill.context.StandardContext
-import io.getquill.context.cassandra.{CassandraBaseContext, CqlIdiom}
+import io.getquill.context.cassandra.{ CassandraBaseContext, CqlIdiom }
 import io.getquill.context.qzio.ZioContext
 import io.getquill.util.Messages.fail
 import io.getquill.util.ZioConversions._
 import io.getquill.util.ContextLogger
-import zio.blocking.{Blocking, blocking}
+import zio.blocking.{ Blocking, blocking }
 import zio.stream.ZStream
-import zio.{Chunk, ChunkBuilder, Has, ZIO, ZManaged}
+import zio.{ Chunk, ChunkBuilder, Has, ZIO, ZManaged }
 
 import scala.jdk.CollectionConverters._
 import scala.util.Try
@@ -56,8 +56,8 @@ object CassandraZioContext { //test
  */
 class CassandraZioContext[N <: NamingStrategy](val naming: N)
   extends CassandraBaseContext[N]
-    with ZioContext[CqlIdiom, N]
-    with StandardContext[CqlIdiom, N] {
+  with ZioContext[CqlIdiom, N]
+  with StandardContext[CqlIdiom, N] {
 
   private val logger = ContextLogger(classOf[CassandraZioContext[_]])
 
@@ -93,7 +93,7 @@ class CassandraZioContext[N <: NamingStrategy](val naming: N)
           // Set the fetch size of the result set if it exists
           fetchSize match {
             case Some(value) => p.setFetchSize(value)
-            case None =>
+            case None        =>
           }
           p
         }

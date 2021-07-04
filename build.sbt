@@ -434,14 +434,18 @@ lazy val `quill-ce` =
   (project in file("quill-ce"))
     .settings(commonSettings: _*)
     .settings(mimaSettings: _*)
-    .settings(scalacOptions ++= {
-      val version = raw"(\d+).(\d+).(\d+)".r
-      version.findAllIn(scalaVersion.value).toList.map(_.toInt) match {
-        case List(_, major, minor) if major == 11 && minor >= 9 => Seq("-Ypartial-unification")
-        case List(_, major, _) if major == 12 => Seq("-Ypartial-unification")
-        case _ => Seq.empty
-      }
-    },
+    .settings(
+      scalaVersion := scala_v_12,
+      crossScalaVersions := Seq(scala_v_12, scala_v_13),
+      crossPaths := false,
+      scalacOptions ++= {
+        val version = raw"(\d+).(\d+).(\d+)".r
+        version.findAllIn(scalaVersion.value).toList.map(_.toInt) match {
+          case List(_, major, minor) if major == 11 && minor >= 9 => Seq("-Ypartial-unification")
+          case List(_, major, _) if major == 12 => Seq("-Ypartial-unification")
+          case _ => Seq.empty
+        }
+      },
       libraryDependencies ++= Seq(
         "org.typelevel" %% "cats-core" % "2.3.0",
         "org.typelevel" %% "cats-effect" % "3.1.1"

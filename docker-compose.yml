@@ -91,9 +91,9 @@ services:
       - oracle:oracle
     volumes:
       - ./:/app:delegated
-      - ~/.ivy2:/root/.ivy2:cached
-      - ~/.m2:/root/.m2:cached
-      - ~/.sbt:/root/.sbt:cached
+      - .ivy2:/root/.ivy2:cached
+      - .m2:/root/.m2:cached
+      - .sbt:/root/.sbt:cached
     environment:
       - SBT_OPTS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 -Dfile.encoding=UTF-8 -Xms512m -Xmx10g -Xss2m -XX:ReservedCodeCacheSize=256m -XX:+TieredCompilation -XX:+CMSClassUnloadingEnabled -XX:+UseConcMarkSweepGC
       - POSTGRES_HOST=postgres
