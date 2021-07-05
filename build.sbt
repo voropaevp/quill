@@ -23,11 +23,15 @@ lazy val baseModules = Seq[sbt.ClasspathDep[sbt.ProjectReference]](
   `quill-core-portable-jvm`,
   `quill-core-jvm`,
   `quill-sql-portable-jvm`,
-  `quill-sql-jvm`, `quill-monix`, `quill-zio`
+  `quill-sql-jvm`,
+//  `quill-monix`,
+  `quill-zio`, `quill-ce`
 )
 
 lazy val dbModules = Seq[sbt.ClasspathDep[sbt.ProjectReference]](
-  `quill-jdbc`, `quill-jdbc-monix`, `quill-jdbc-zio`
+  `quill-jdbc`,
+//  `quill-jdbc-monix`,
+  `quill-jdbc-zio`
 )
 
 lazy val jasyncModules = Seq[sbt.ClasspathDep[sbt.ProjectReference]](
@@ -37,7 +41,8 @@ lazy val jasyncModules = Seq[sbt.ClasspathDep[sbt.ProjectReference]](
 lazy val asyncModules = Seq[sbt.ClasspathDep[sbt.ProjectReference]](
   `quill-async`, `quill-async-mysql`, `quill-async-postgres`,
   `quill-finagle-mysql`, `quill-finagle-postgres`,
-  `quill-ndbc`, `quill-ndbc-postgres`, `quill-ndbc-monix`
+  `quill-ndbc`, `quill-ndbc-postgres`,
+//  `quill-ndbc-monix`
 ) ++ jasyncModules
 
 lazy val codegenModules = Seq[sbt.ClasspathDep[sbt.ProjectReference]](
@@ -45,7 +50,9 @@ lazy val codegenModules = Seq[sbt.ClasspathDep[sbt.ProjectReference]](
 )
 
 lazy val bigdataModules = Seq[sbt.ClasspathDep[sbt.ProjectReference]](
-  `quill-cassandra`, `quill-cassandra-lagom`, `quill-cassandra-monix`, `quill-cassandra-zio`, `quill-orientdb`, `quill-spark`
+  `quill-cassandra`, `quill-cassandra-lagom`,
+//  `quill-cassandra-monix`,
+  `quill-cassandra-zio`, `quill-orientdb`, `quill-spark`, `quill-cassandra-ce`
 )
 
 lazy val allModules =
@@ -329,7 +336,7 @@ lazy val `quill-codegen-tests` =
         (Test / unmanagedSourceDirectories).value.map { dir =>
           (dir / "io" / "getquill" / "codegen" / "OracleCodegenTestCases.scala").getCanonicalPath
         } ++
-        (Test/ unmanagedSourceDirectories).value.map { dir =>
+          (Test / unmanagedSourceDirectories).value.map { dir =>
             (dir / "io" / "getquill" / "codegen" / "util" / "WithOracleContext.scala").getCanonicalPath
           }
       },
@@ -440,21 +447,24 @@ lazy val `quill-ce` =
     .settings(commonSettings: _*)
     .settings(mimaSettings: _*)
     .settings(
-      scalaVersion := scala_v_12,
-      crossScalaVersions := Seq(scala_v_12, scala_v_13),
       crossPaths := false,
+      conflictManager := ConflictManager.latestRevision,
       scalacOptions ++= {
-        val version = raw"(\d+).(\d+).(\d+)".r
-        version.findAllIn(scalaVersion.value).toList.map(_.toInt) match {
-          case List(_, major, minor) if major == 11 && minor >= 9 => Seq("-Ypartial-unification")
-          case List(_, major, _) if major == 12 => Seq("-Ypartial-unification")
+        CrossVersion.partialVersion(scalaVersion.value) match {
+          case Some((2, major)) if major <= 12 => Seq("-Ypartial-unification")
           case _ => Seq.empty
         }
       },
-      libraryDependencies ++= Seq(
-        "org.typelevel" %% "cats-core" % "2.3.0",
-        "org.typelevel" %% "cats-effect" % "3.1.1"
-      )
+      libraryDependencies ++= {
+        CrossVersion.partialVersion(scalaVersion.value) match {
+          case Some((2, x)) if x >= 12 => Seq(
+            "org.typelevel" %% "cats-core" % "2.3.0",
+            "org.typelevel" %% "cats-effect" % "3.1.1",
+            "co.fs2" %% "fs2-core"  % "3.0.4",
+          )
+          case _ => Seq.empty
+        }
+      }
     )
     .dependsOn(`quill-core-jvm` % "compile->compile;test->test")
 
@@ -684,16 +694,14 @@ lazy val `quill-cassandra-zio` =
       )
     )
     .dependsOn(`quill-cassandra` % "compile->compile;test->test")
-    .dependsOn(`quill-ce` % "compile->compile;test->test")
+    .dependsOn(`quill-zio` % "compile->compile;test->test")
 
 lazy val `quill-cassandra-ce` =
   (project in file("quill-cassandra-ce"))
     .settings(commonSettings: _*)
     .settings(mimaSettings: _*)
     .settings(
-      fork in Test := true,
-      scalaVersion := scala_v_12,
-      crossScalaVersions := Seq(scala_v_12, scala_v_13)
+      Test / fork := true
     )
     .dependsOn(`quill-cassandra` % "compile->compile;test->test")
     .dependsOn(`quill-ce` % "compile->compile;test->test")
@@ -725,13 +733,13 @@ lazy val `quill-orientdb` =
     .settings(commonSettings: _*)
     .settings(mimaSettings: _*)
     .settings(
-        Test / fork := true,
+      Test / fork := true,
       libraryDependencies ++= Seq(
         "com.orientechnologies" % "orientdb-graphdb" % "3.0.34"
       )
     )
     .dependsOn(`quill-sql-jvm` % "compile->compile;test->test")
-      .enablePlugins(MimaPlugin)
+    .enablePlugins(MimaPlugin)
 
 lazy val mimaSettings = Seq(
   mimaPreviousArtifacts := {
@@ -848,7 +856,7 @@ def excludePathsIfOracle(paths: Seq[String]) = {
 }
 
 val scala_v_11 = "2.11.12"
-val scala_v_12 = "2.12.14"
+val scala_v_12 = "2.12.6"
 val scala_v_13 = "2.13.3"
 
 
@@ -870,14 +878,18 @@ lazy val loggingSettings = Seq(
 lazy val basicSettings = Seq(
   unmanagedSources / excludeFilter := {
     excludeTests match {
-      case true  => excludePaths((Test / unmanagedSourceDirectories).value.map(dir => dir.getCanonicalPath))
+      case true => excludePaths((Test / unmanagedSourceDirectories).value.map(dir => dir.getCanonicalPath))
       case false => new SimpleFileFilter(file => false)
     }
   },
   organization := "io.getquill",
-  scalaVersion := scala_v_11,
-  crossScalaVersions := Seq(scala_v_11, scala_v_12, scala_v_13),
+  scalaVersion := scala_v_12,
+  crossScalaVersions := Seq( scala_v_12, scala_v_13),
   libraryDependencies ++= Seq(
+    "dev.zio" %% "zio" % "1.0.5",
+    "dev.zio" %% "zio-streams" % "1.0.5"
+  ),
+    libraryDependencies ++= Seq(
     "org.scala-lang.modules" %%% "scala-collection-compat" % "2.2.0",
     "com.lihaoyi" %% "pprint" % pprintVersion(scalaVersion.value),
     "org.scalatest" %%% "scalatest" % "3.2.3" % Test,
