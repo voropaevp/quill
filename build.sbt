@@ -460,8 +460,7 @@ lazy val `quill-ce` =
           case Some((2, x)) if x >= 12 => Seq(
             "org.typelevel" %% "cats-core" % "2.3.0",
             "org.typelevel" %% "cats-effect" % "3.1.1",
-            "co.fs2" %% "fs2-core" % "3.0.4",
-            "com.codecommit" %% "cats-effect-testing-scalatest" % "0.5.4" % Test,
+            "co.fs2" %% "fs2-core" % "3.0.4"
           )
           case _ => Seq.empty
         }
