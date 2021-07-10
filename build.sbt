@@ -24,13 +24,13 @@ lazy val baseModules = Seq[sbt.ClasspathDep[sbt.ProjectReference]](
   `quill-core-jvm`,
   `quill-sql-portable-jvm`,
   `quill-sql-jvm`,
-//  `quill-monix`,
+  //  `quill-monix`,
   `quill-zio`, `quill-ce`
 )
 
 lazy val dbModules = Seq[sbt.ClasspathDep[sbt.ProjectReference]](
   `quill-jdbc`,
-//  `quill-jdbc-monix`,
+  //  `quill-jdbc-monix`,
   `quill-jdbc-zio`
 )
 
@@ -42,7 +42,7 @@ lazy val asyncModules = Seq[sbt.ClasspathDep[sbt.ProjectReference]](
   `quill-async`, `quill-async-mysql`, `quill-async-postgres`,
   `quill-finagle-mysql`, `quill-finagle-postgres`,
   `quill-ndbc`, `quill-ndbc-postgres`,
-//  `quill-ndbc-monix`
+  //  `quill-ndbc-monix`
 ) ++ jasyncModules
 
 lazy val codegenModules = Seq[sbt.ClasspathDep[sbt.ProjectReference]](
@@ -51,7 +51,7 @@ lazy val codegenModules = Seq[sbt.ClasspathDep[sbt.ProjectReference]](
 
 lazy val bigdataModules = Seq[sbt.ClasspathDep[sbt.ProjectReference]](
   `quill-cassandra`, `quill-cassandra-lagom`,
-//  `quill-cassandra-monix`,
+  //  `quill-cassandra-monix`,
   `quill-cassandra-zio`, `quill-orientdb`, `quill-spark`, `quill-cassandra-ce`
 )
 
@@ -460,7 +460,8 @@ lazy val `quill-ce` =
           case Some((2, x)) if x >= 12 => Seq(
             "org.typelevel" %% "cats-core" % "2.3.0",
             "org.typelevel" %% "cats-effect" % "3.1.1",
-            "co.fs2" %% "fs2-core"  % "3.0.4",
+            "co.fs2" %% "fs2-core" % "3.0.4",
+            "com.codecommit" %% "cats-effect-testing-scalatest" % "0.5.4" % Test,
           )
           case _ => Seq.empty
         }
@@ -884,12 +885,12 @@ lazy val basicSettings = Seq(
   },
   organization := "io.getquill",
   scalaVersion := scala_v_12,
-  crossScalaVersions := Seq( scala_v_12, scala_v_13),
+  crossScalaVersions := Seq(scala_v_12, scala_v_13),
   libraryDependencies ++= Seq(
     "dev.zio" %% "zio" % "1.0.5",
     "dev.zio" %% "zio-streams" % "1.0.5"
   ),
-    libraryDependencies ++= Seq(
+  libraryDependencies ++= Seq(
     "org.scala-lang.modules" %%% "scala-collection-compat" % "2.2.0",
     "com.lihaoyi" %% "pprint" % pprintVersion(scalaVersion.value),
     "org.scalatest" %%% "scalatest" % "3.2.3" % Test,
