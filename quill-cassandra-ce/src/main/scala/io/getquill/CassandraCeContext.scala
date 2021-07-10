@@ -39,10 +39,18 @@ class CassandraCeContext[N <: NamingStrategy, F[_]: FlatMap](
       (rs.asScala.take(available), rs.isFullyFetched)
     }
     (page, isFullyFetched) = page_isFullyFetched
-    it <- if (isFullyFetched) {
-      af.delay(page)
-    } else {
-      rs.fetchMoreResults().toAsync.map(_ => page)
+    it <- if (isFullyFetched)
+      af.delay {
+        logger.underlying.info("paging")
+        page
+      }
+    else {
+      rs.fetchMoreResults().toAsync.map(_ => {
+        logger.underlying.info("fetching")
+        val p = page.toList
+        logger.underlying.info(p.toString())
+        p
+      })
     }
   } yield it
 
@@ -50,7 +58,7 @@ class CassandraCeContext[N <: NamingStrategy, F[_]: FlatMap](
     Stream
       .eval(prepareRowAndLog(cql, prepare))
       .evalMap(p => session.executeAsync(p).toAsync)
-      .evalMap(page)
+      .flatMap(rs => Stream.repeatEval(page(rs)))
       .takeWhile(_.nonEmpty)
       .flatMap(Stream.iterable)
       .map(extractor)
