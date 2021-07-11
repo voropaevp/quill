@@ -41,16 +41,10 @@ class CassandraCeContext[N <: NamingStrategy, F[_]: FlatMap](
     (page, isFullyFetched) = page_isFullyFetched
     it <- if (isFullyFetched)
       af.delay {
-        logger.underlying.info("paging")
         page
       }
     else {
-      rs.fetchMoreResults().toAsync.map(_ => {
-        logger.underlying.info("fetching")
-        val p = page.toList
-        logger.underlying.info(p.toString())
-        p
-      })
+      rs.fetchMoreResults().toAsync.map(_ => page)
     }
   } yield it
 
