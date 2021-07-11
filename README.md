@@ -3765,6 +3765,31 @@ lazy val ctx = new CassandraMonixContext(SnakeCase, "ctx")
 lazy val ctx = new CassandraStreamContext(SnakeCase, "ctx")
 ```
 
+## quill-cassandra-ce
+Quill context that executes Cassandra queries inside of Cats Effect IO monad. `CassandraCeContext` requires an implict
+`Async[F]` provided by IOApp or `implicit val af = Async[IO]`.
+
+`streamQuery` method returns a `fs2` Stream[F, T].
+
+```scala
+import cats.effect.IOApp
+
+object  AppMain extends IOApp.Simple {
+   val run: IO[Unit] = {
+      lazy val ctx = new CassandraCeContext(SnakeCase, "ctx")
+
+   }
+}
+```
+
+#### sbt dependencies
+```
+libraryDependencies ++= Seq(
+  "io.getquill" %% "quill-cassandra-ce" % "3.7.1-SNAPSHOT"
+)
+```
+
+
 ## OrientDB Contexts
 
 #### sbt dependencies
