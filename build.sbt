@@ -447,8 +447,6 @@ lazy val `quill-ce` =
     .settings(commonSettings: _*)
     .settings(mimaSettings: _*)
     .settings(
-      crossPaths := false,
-      conflictManager := ConflictManager.latestRevision,
       scalacOptions ++= {
         CrossVersion.partialVersion(scalaVersion.value) match {
           case Some((2, major)) if major <= 12 => Seq("-Ypartial-unification")
